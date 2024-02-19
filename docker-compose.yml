@@ -1,0 +1,53 @@
+version: '3'
+
+services:
+  db:
+    container_name: db
+    build:
+      context: .
+      dockerfile: dockerfiles/db.Dockerfile
+    restart: unless-stopped
+    ports:
+      - "5432:5432"
+    expose:
+      - 5432
+    environment:
+      POSTGRES_PASSWORD: docker-password
+      POSTGRES_USER: docker-user
+      POSTGRES_DB: docker-test
+    networks:
+      - network-docker
+    healthcheck:
+      test:
+        [
+          "CMD-SHELL",
+          "pg_isready -U docker-user -d docker-test -h localhost"
+        ]
+      interval: 5s
+      retries: 5
+      start_period: 10s
+
+  app:
+    container_name: app
+    ports:
+      - '8000:8000'
+    expose:
+      - 8000
+    depends_on:
+      db:
+        condition: service_healthy
+    build:
+      context: .
+      dockerfile: dockerfiles/app.Dockerfile
+    environment:
+      POSTGRES_PASSWORD: docker-password
+      POSTGRES_USER: docker-user
+      POSTGRES_DB: docker-test
+      POSTGRES_PORT: 5432
+      STAGE: dev
+    networks:
+      - network-docker
+
+networks:
+  network-docker:
+    driver: bridge
